@@ -1,0 +1,11 @@
+{
+"expo": {
+"name": "EasyPlanPI",
+"slug": "easyplanpi",
+"version": "1.0.0",
+"orientation": "portrait",
+"sdkVersion": "49.0.0",
+"platforms": ["ios", "android", "web"],
+"assetBundlePatterns": ["**/*"]
+}
+}
