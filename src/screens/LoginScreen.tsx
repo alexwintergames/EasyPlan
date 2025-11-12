@@ -1,5 +1,6 @@
+// src/screens/LoginScreen.tsx
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../supabase';
 
 export default function LoginScreen({ navigation }: any) {
@@ -9,18 +10,20 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLogin = async () => {
     setError('');
-
     if (!email || !password) {
       setError('Preencha todos os campos');
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      setError('E-mail ou senha incorretos');
-    } else {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setError('E-mail ou senha incorretos');
+        return;
+      }
       navigation.replace('Home');
+    } catch (err: any) {
+      Alert.alert('Erro', err.message || 'Erro desconhecido');
     }
   };
 
@@ -99,8 +102,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
     elevation: 3,
   },
   buttonText: {
@@ -119,4 +122,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-

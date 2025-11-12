@@ -1,94 +1,56 @@
+// src/screens/CreateTournamentScreen.tsx
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import { supabase } from '../supabase';
 
 export default function CreateTournamentScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [name, setName] = useState('');
-  const [sport, setSport] = useState('');
-  const [location, setLocation] = useState('');
-  const [date, setDate] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleCreateTournament = async () => {
-    if (!name || !sport || !location || !date) {
-      Alert.alert('Erro', 'Preencha todos os campos.');
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      Alert.alert('Preencha o nome');
+      return;
+    }
+    setSaving(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session?.user) {
+      Alert.alert('Erro', 'Usuário não autenticado');
+      setSaving(false);
       return;
     }
 
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData.user?.id;
-
-    const { error } = await supabase.from('tournaments').insert([{ name, sport, location, date, organizer_id: userId }]);
-
-    if (error) Alert.alert('Erro ao criar campeonato', error.message);
-    else {
-      Alert.alert('Sucesso', 'Campeonato criado com sucesso!');
+    const payload = [{ name: name.trim(), description: description || null, organizer_id: session.user.id }];
+    const { error } = await supabase.from('tournaments').insert(payload);
+    if (error) {
+      Alert.alert('Erro', 'Não foi possível criar o torneio');
+    } else {
+      Alert.alert('Sucesso', 'Torneio criado');
       navigation.goBack();
     }
+    setSaving(false);
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Criar Campeonato</Text>
-
       <TextInput style={styles.input} placeholder="Nome do campeonato" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="Esporte" value={sport} onChangeText={setSport} />
-      <TextInput style={styles.input} placeholder="Local" value={location} onChangeText={setLocation} />
-      <TextInput style={styles.input} placeholder="Data (ex: 20/11/2025)" value={date} onChangeText={setDate} />
-
-      <TouchableOpacity style={styles.button} onPress={handleCreateTournament}>
-        <Text style={styles.buttonText}>Criar</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={[styles.button, { backgroundColor: '#ff8800' }]} onPress={() => navigation.goBack()}>
-        <Text style={styles.buttonText}>Voltar</Text>
+      <TextInput style={[styles.input, { height: 120 }]} placeholder="Descrição (opcional)" value={description} onChangeText={setDescription} multiline />
+      <TouchableOpacity style={styles.saveBtn} onPress={handleCreate} disabled={saving}>
+        <Text style={styles.saveText}>{saving ? 'Criando...' : 'Criar'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF8F0',
-    padding: 25,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FF7A00',
-    marginBottom: 25,
-  },
-  input: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginBottom: 15,
-    fontSize: 16,
-    color: '#333',
-  },
-  button: {
-    width: '90%',
-    backgroundColor: '#FF7A00',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  container: { padding: 20, backgroundColor: '#FFF8F0', flexGrow: 1, alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '700', color: '#FF7A00', marginBottom: 18 },
+  input: { width: '100%', backgroundColor: '#fff', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', marginBottom: 12 },
+  saveBtn: { backgroundColor: '#FF7A00', padding: 14, borderRadius: 12, width: '100%', alignItems: 'center', marginTop: 8 },
+  saveText: { color: '#fff', fontWeight: '700' },
 });
-

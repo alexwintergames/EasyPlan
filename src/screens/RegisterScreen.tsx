@@ -5,35 +5,67 @@ import { supabase } from '../supabase';
 export default function RegisterScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleRegister = async () => {
     setError('');
-    if (!email || !password) {
+    setSuccess('');
+
+    if (!email || !password || !name) {
       setError('Preencha todos os campos');
       return;
     }
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
 
-    if (error) setError(error.message);
-    else navigation.replace('Tutorial');
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    // Cria o registro na tabela "users"
+    const { error: insertError } = await supabase.from('users').insert([
+      { id: data.user?.id, name, email, role: 'player' },
+    ]);
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+
+    setSuccess('Conta criada com sucesso!');
+    setTimeout(() => navigation.replace('Login'), 1500);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>EasyPlan</Text>
-      <Text style={styles.subtitle}>Crie sua conta da escola</Text>
+      <Text style={styles.title}>Crie sua conta</Text>
+      <Text style={styles.subtitle}>Organize campeonatos com o EasyPlan</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="E-mail institucional"
+        placeholder="Nome completo"
+        placeholderTextColor="#aaa"
+        value={name}
+        onChangeText={setName}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="E-mail"
         placeholderTextColor="#aaa"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
       />
+
       <TextInput
         style={styles.input}
         placeholder="Senha"
@@ -44,6 +76,7 @@ export default function RegisterScreen({ navigation }: any) {
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {success ? <Text style={styles.success}>{success}</Text> : null}
 
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Cadastrar</Text>
@@ -65,10 +98,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
   },
   title: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: 'bold',
     color: '#FF7A00',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
@@ -114,5 +147,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontSize: 14,
   },
+  success: {
+    color: 'green',
+    marginBottom: 10,
+    fontSize: 14,
+  },
 });
-
