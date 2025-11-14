@@ -1,86 +1,109 @@
-// src/screens/TournamentDetailsScreen.tsx
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// src/screens/CreateTournamentScreen.tsx
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../auth/authContext';
 import { supabase } from '../supabase';
 
-type TournamentDetailsRouteProp = RouteProp<
-  { TournamentDetails: { id: string } },
-  'TournamentDetails'
->;
+export default function CreateTournamentScreen({ navigation }: any) {
+  const { user } = useAuth();
 
-export default function TournamentDetailsScreen() {
-  const route = useRoute<TournamentDetailsRouteProp>();
-  const navigation = useNavigation<any>();
-  const { id } = route.params;
+  const [name, setName] = useState('');
+  const [sport, setSport] = useState('');
+  const [startDate, setStartDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const [bracketType, setBracketType] = useState('single_elimination');
 
-  const [tournament, setTournament] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const handleCreateTournament = async () => {
+    if (!name.trim() || !sport.trim()) {
+      Alert.alert('Erro', 'Preencha todos os campos');
+      return;
+    }
 
-  useEffect(() => {
-    const fetchTournament = async () => {
-      const { data, error } = await supabase
-        .from('tournaments')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        Alert.alert('Erro', 'Não foi possível carregar o campeonato');
-      } else {
-        setTournament(data);
-      }
-      setLoading(false);
-    };
-
-    fetchTournament();
-  }, [id]);
-
-  const handleDelete = async () => {
-    Alert.alert('Confirmar', 'Deseja excluir este campeonato?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase.from('tournaments').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Erro', 'Não foi possível excluir');
-          } else {
-            Alert.alert('Sucesso', 'Campeonato excluído');
-            navigation.goBack();
-          }
+    const { data, error } = await supabase
+      .from('tournaments')
+      .insert([
+        {
+          name,
+          sport,
+          start_date: startDate.toISOString(),
+          bracket_type: bracketType,
+          organizer_id: user?.id,
         },
-      },
-    ]);
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.log(error);
+      Alert.alert('Erro', 'Não foi possível criar o campeonato');
+      return;
+    }
+
+    Alert.alert('Sucesso', 'Campeonato criado com sucesso!');
+    navigation.goBack();
   };
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#FF7A00" />
-      </View>
-    );
-  }
-
-  if (!tournament) {
-    return (
-      <View style={styles.center}>
-        <Text style={{ color: '#333' }}>Campeonato não encontrado.</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{tournament.name}</Text>
-      <Text style={styles.desc}>{tournament.description || 'Sem descrição'}</Text>
-      <View style={styles.line} />
-      <Text style={styles.label}>Organizador:</Text>
-      <Text style={styles.text}>{tournament.organizer_id}</Text>
+      <Text style={styles.title}>Criar Campeonato</Text>
 
-      <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-        <Text style={styles.deleteText}>Excluir Campeonato</Text>
+      <Text style={styles.label}>Nome do campeonato</Text>
+      <TextInput
+        style={styles.input}
+        value={name}
+        onChangeText={setName}
+        placeholder="Ex: Interclasse 2025"
+        placeholderTextColor="#999"
+      />
+
+      <Text style={styles.label}>Esporte</Text>
+      <TextInput
+        style={styles.input}
+        value={sport}
+        onChangeText={setSport}
+        placeholder="Ex: Futsal"
+        placeholderTextColor="#999"
+      />
+
+      <Text style={styles.label}>Data de início</Text>
+      <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.dateBtn}>
+        <Text style={styles.dateText}>
+          {startDate.toLocaleDateString('pt-BR')}
+        </Text>
+      </TouchableOpacity>
+
+      {showPicker && (
+        <DateTimePicker
+          value={startDate}
+          mode="date"
+          onChange={(event, date) => {
+            setShowPicker(false);
+            if (date) setStartDate(date);
+          }}
+        />
+      )}
+
+      <Text style={styles.label}>Tipo de chave</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() =>
+          setBracketType(
+            bracketType === 'single_elimination'
+              ? 'double_elimination'
+              : 'single_elimination'
+          )
+        }
+      >
+        <Text style={{ color: '#333' }}>
+          {bracketType === 'single_elimination'
+            ? 'Eliminação Simples'
+            : 'Eliminação Dupla'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.createBtn} onPress={handleCreateTournament}>
+        <Text style={styles.createText}>Criar Campeonato</Text>
       </TouchableOpacity>
     </View>
   );
@@ -89,49 +112,52 @@ export default function TournamentDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF8F0',
     padding: 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#FFF8F0',
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: '#FF7A00',
-    marginBottom: 10,
-  },
-  desc: {
-    fontSize: 16,
-    color: '#444',
-    marginBottom: 15,
-  },
-  line: {
-    height: 1,
-    backgroundColor: '#ddd',
-    marginVertical: 10,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#777',
+    marginBottom: 4,
+    color: '#555',
   },
-  text: {
-    fontSize: 15,
-    color: '#333',
-    marginBottom: 20,
-  },
-  deleteBtn: {
-    backgroundColor: '#ff3b30',
+  input: {
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 10,
-    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    color: '#000',
   },
-  deleteText: {
+  dateBtn: {
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 20,
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  createBtn: {
+    backgroundColor: '#FF7A00',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  createText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: '700',
   },
 });

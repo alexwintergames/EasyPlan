@@ -1,6 +1,6 @@
-// App.tsx
-import { AuthProvider } from './src/auth/authContext';
-import AppNavigator from './src/navigation/AppNavigator';
+import 'react-native-reanimated';
+import { AuthProvider } from "./src/auth/authContext";
+import AppNavigator from "./src/navigation/AppNavigator";
 
 export default function App() {
   return (

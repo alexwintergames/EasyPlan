@@ -1,30 +1,66 @@
-// src/screens/LoginScreen.tsx
-import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../supabase';
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "../auth/authContext";
+import { supabase } from "../supabase";
 
 export default function LoginScreen({ navigation }: any) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { setUser } = useAuth();
 
   const handleLogin = async () => {
-    setError('');
     if (!email || !password) {
-      setError('Preencha todos os campos');
+      Alert.alert("Erro", "Preencha todos os campos.");
       return;
     }
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError('E-mail ou senha incorretos');
-        return;
-      }
-      navigation.replace('Home');
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro desconhecido');
+    setLoading(true);
+
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError || !loginData.user) {
+      setLoading(false);
+      Alert.alert("Erro", loginError?.message || "Falha ao logar");
+      return;
     }
+
+    // Buscar perfil no banco
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", loginData.user.id)
+      .single();
+
+    if (profileError) {
+      setLoading(false);
+      Alert.alert("Erro", "Falha ao carregar perfil do usuário");
+      return;
+    }
+
+    // Atualiza contexto do usuário
+    setUser({
+      id: loginData.user.id,
+      email: loginData.user.email || "",
+      name: profile?.name || loginData.user.email?.split("@")[0] || "",
+      avatar_url: profile?.avatar_url || undefined,
+      firstAccess: profile?.firstAccess ?? false,
+    });
+
+    setLoading(false);
+
+    // Navegação será controlada pelo AppNavigator via useAuth
   };
 
   return (
@@ -33,92 +69,48 @@ export default function LoginScreen({ navigation }: any) {
       <Text style={styles.subtitle}>Organize seus campeonatos facilmente</Text>
 
       <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        placeholderTextColor="#aaa"
+        placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
         autoCapitalize="none"
-      />
-      <TextInput
         style={styles.input}
+        placeholderTextColor="#999"
+      />
+
+      <TextInput
         placeholder="Senha"
-        placeholderTextColor="#aaa"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        style={styles.input}
+        placeholderTextColor="#999"
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Entrar</Text>
+      <TouchableOpacity
+        style={styles.loginBtn}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.loginText}>Entrar</Text>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-        <Text style={styles.link}>Não tem conta? Cadastre-se</Text>
+      <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+        <Text style={styles.registerText}>Criar uma conta</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 25,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#FF7A00',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 35,
-    textAlign: 'center',
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 15,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#fff',
-  },
-  button: {
-    width: '100%',
-    backgroundColor: '#FF7A00',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 17,
-  },
-  link: {
-    color: '#FF7A00',
-    fontSize: 15,
-    marginTop: 10,
-  },
-  error: {
-    color: 'red',
-    marginBottom: 10,
-    fontSize: 14,
-  },
+  container: { flex: 1, backgroundColor: "#FFF", padding: 24, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: 34, fontWeight: "800", color: "#FF7A00", marginBottom: 4 },
+  subtitle: { fontSize: 14, color: "#666", marginBottom: 40 },
+  input: { width: "100%", backgroundColor: "#f2f2f2", padding: 14, borderRadius: 12, marginBottom: 14, fontSize: 16 },
+  loginBtn: { width: "100%", backgroundColor: "#FF7A00", padding: 15, borderRadius: 12, alignItems: "center", marginTop: 10 },
+  loginText: { color: "#FFF", fontWeight: "700", fontSize: 16 },
+  registerText: { color: "#FF7A00", fontWeight: "600", marginTop: 20, fontSize: 15 },
 });
